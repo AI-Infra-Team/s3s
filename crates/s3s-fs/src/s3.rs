@@ -365,7 +365,7 @@ impl S3 for FileSystem {
 
         // let mut count = 0;
         while let Some(dir) = dir_queue.pop_front() {
-            tracing::debug!("list dir {}", dir);
+            tracing::debug!("list dir {:?}", dir);
             let mut iter = try_!(fs::read_dir(dir).await);
             while let Some(entry) = try_!(iter.next_entry().await) {
                 // tracing::debug!("start processing dir: {:?} at {}", entry.path(), count);
