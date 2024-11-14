@@ -326,7 +326,7 @@ impl S3 for FileSystem {
             // Timestamp::from(try_!(file_meta.created().or(file_meta.modified())));
 
             let bucket = Bucket {
-                creation_date: Some(created_or_modified_date),
+                creation_date: created_or_modified_date,
                 name: Some(name.to_owned()),
             };
             buckets.push(bucket);
