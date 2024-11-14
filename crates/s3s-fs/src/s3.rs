@@ -367,6 +367,7 @@ impl S3 for FileSystem {
         let mut objects: Vec<Object> = default();
         let mut dir_queue: VecDeque<PathBuf> = default();
         dir_queue.push_back(path.clone());
+        let mut common_prefix_list: CommonPrefixList = List::new();
 
         // let mut count = 0;
         while let Some(dir) = dir_queue.pop_front() {
@@ -377,6 +378,9 @@ impl S3 for FileSystem {
                 // count += 1;
                 let file_type = try_!(entry.file_type().await);
                 if file_type.is_dir() {
+                    common_prefix_list.push(CommonPrefix {
+                        prefix: Some(entry.file_name()),
+                    })
                     // dir_queue.push_back(entry.path());
                 } else {
                     let file_path = entry.path();
@@ -439,7 +443,8 @@ impl S3 for FileSystem {
             encoding_type: input.encoding_type,
             name: Some(input.bucket),
             prefix: input.prefix,
-            ..Default::default()
+            common_prefixes: Some(common_prefix_list),
+            ..Default::default(),
         };
         Ok(S3Response::new(output))
     }
