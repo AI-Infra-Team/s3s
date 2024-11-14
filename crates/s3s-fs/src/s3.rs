@@ -376,10 +376,9 @@ impl S3 for FileSystem {
                 // tracing::debug!("start processing dir: {:?} at {}", entry.path(), count);
                 // count += 1;
                 let file_type = try_!(entry.file_type().await);
-                // if file_type.is_dir() {
-                //     dir_queue.push_back(entry.path());
-                // } else
-                {
+                if file_type.is_dir() {
+                    // dir_queue.push_back(entry.path());
+                } else {
                     let file_path = entry.path();
                     let key = try_!(file_path.strip_prefix(&path));
                     let delimiter = input.delimiter.as_ref().map_or("/", |d| d.as_str());
