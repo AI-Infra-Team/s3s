@@ -93,7 +93,7 @@ impl S3 for FileSystem {
         }
 
         let file_metadata = try_!(fs::metadata(&src_path).await);
-        let last_modified = Timestamp::from(try_!(file_metadata.modified()));
+        let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
 
         let _ = try_!(fs::copy(&src_path, &dst_path).await);
 
@@ -109,7 +109,7 @@ impl S3 for FileSystem {
 
         let copy_object_result = CopyObjectResult {
             e_tag: Some(format!("\"{md5_sum}\"")),
-            last_modified: Some(last_modified),
+            last_modified: last_modified,
             ..Default::default()
         };
 
@@ -203,7 +203,7 @@ impl S3 for FileSystem {
         let mut file = fs::File::open(&object_path).await.map_err(|e| s3_error!(e, NoSuchKey))?;
 
         let file_metadata = try_!(file.metadata().await);
-        let last_modified = Timestamp::from(try_!(file_metadata.modified()));
+        let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
         let file_len = file_metadata.len();
 
         let (content_length, content_range) = match input.range {
@@ -246,7 +246,7 @@ impl S3 for FileSystem {
             body: Some(StreamingBlob::wrap(body)),
             content_length: Some(content_length_i64),
             content_range,
-            last_modified: Some(last_modified),
+            last_modified: last_modified,
             metadata: object_metadata,
             e_tag: Some(e_tag),
             checksum_crc32: checksum.checksum_crc32,
@@ -280,7 +280,7 @@ impl S3 for FileSystem {
         }
 
         let file_metadata = try_!(fs::metadata(path).await);
-        let last_modified = Timestamp::from(try_!(file_metadata.modified()));
+        let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
         let file_len = file_metadata.len();
 
         let object_metadata = self.load_metadata(&input.bucket, &input.key, None).await?;
@@ -291,7 +291,7 @@ impl S3 for FileSystem {
         let output = HeadObjectOutput {
             content_length: Some(try_!(i64::try_from(file_len))),
             content_type: Some(content_type),
-            last_modified: Some(last_modified),
+            last_modified: last_modified,
             metadata: object_metadata,
             ..Default::default()
         };
@@ -318,7 +318,12 @@ impl S3 for FileSystem {
             // Not all filesystems/mounts provide all file attributes like created timestamp,
             // therefore we try to fallback to modified if possible.
             // See https://github.com/Nugine/s3s/pull/22 for more details.
-            let created_or_modified_date = Timestamp::from(try_!(file_meta.created().or(file_meta.modified())));
+            let created_or_modified_date = metadata
+                .created()
+                .or(file_meta.modified())
+                .map_or_else(|err| None, |t| Some(Timestamp::from(t)));
+
+            // Timestamp::from(try_!(file_meta.created().or(file_meta.modified())));
 
             let bucket = Bucket {
                 creation_date: Some(created_or_modified_date),
@@ -394,12 +399,12 @@ impl S3 for FileSystem {
                     }
 
                     let metadata = try_!(entry.metadata().await);
-                    let last_modified = Timestamp::from(try_!(metadata.modified()));
+                    let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t))); //Timestamp::from(try_!());
                     let size = metadata.len();
 
                     let object = Object {
                         key: Some(key_str),
-                        last_modified: Some(last_modified),
+                        last_modified: last_modified,
                         size: Some(try_!(i64::try_from(size))),
                         ..Default::default()
                     };
@@ -690,11 +695,11 @@ impl S3 for FileSystem {
             let part_number = part_number.parse::<i32>().unwrap();
 
             let file_meta = try_!(entry.metadata().await);
-            let last_modified = Timestamp::from(try_!(file_meta.modified()));
+            let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
             let size = try_!(i64::try_from(file_meta.len()));
 
             let part = Part {
-                last_modified: Some(last_modified),
+                last_modified: last_modified,
                 part_number: Some(part_number),
                 size: Some(size),
                 ..Default::default()
