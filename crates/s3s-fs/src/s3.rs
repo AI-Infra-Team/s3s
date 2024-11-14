@@ -363,12 +363,13 @@ impl S3 for FileSystem {
         let mut dir_queue: VecDeque<PathBuf> = default();
         dir_queue.push_back(path.clone());
 
-        let mut count = 0;
+        // let mut count = 0;
         while let Some(dir) = dir_queue.pop_front() {
+            tracing::debug!("list dir {}", dir);
             let mut iter = try_!(fs::read_dir(dir).await);
             while let Some(entry) = try_!(iter.next_entry().await) {
-                tracing::debug!("start processing dir: {:?} at {}", entry.path(), count);
-                count += 1;
+                // tracing::debug!("start processing dir: {:?} at {}", entry.path(), count);
+                // count += 1;
                 let file_type = try_!(entry.file_type().await);
                 if file_type.is_dir() {
                     dir_queue.push_back(entry.path());
