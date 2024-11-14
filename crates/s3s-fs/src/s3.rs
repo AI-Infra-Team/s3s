@@ -93,7 +93,7 @@ impl S3 for FileSystem {
         }
 
         let file_metadata = try_!(fs::metadata(&src_path).await);
-        let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
+        let last_modified = file_metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
 
         let _ = try_!(fs::copy(&src_path, &dst_path).await);
 
@@ -203,7 +203,7 @@ impl S3 for FileSystem {
         let mut file = fs::File::open(&object_path).await.map_err(|e| s3_error!(e, NoSuchKey))?;
 
         let file_metadata = try_!(file.metadata().await);
-        let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
+        let last_modified = file_metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
         let file_len = file_metadata.len();
 
         let (content_length, content_range) = match input.range {
@@ -280,7 +280,7 @@ impl S3 for FileSystem {
         }
 
         let file_metadata = try_!(fs::metadata(path).await);
-        let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
+        let last_modified = file_metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
         let file_len = file_metadata.len();
 
         let object_metadata = self.load_metadata(&input.bucket, &input.key, None).await?;
@@ -318,7 +318,7 @@ impl S3 for FileSystem {
             // Not all filesystems/mounts provide all file attributes like created timestamp,
             // therefore we try to fallback to modified if possible.
             // See https://github.com/Nugine/s3s/pull/22 for more details.
-            let created_or_modified_date = metadata
+            let created_or_modified_date = file_meta
                 .created()
                 .or(file_meta.modified())
                 .map_or_else(|err| None, |t| Some(Timestamp::from(t)));
@@ -695,7 +695,7 @@ impl S3 for FileSystem {
             let part_number = part_number.parse::<i32>().unwrap();
 
             let file_meta = try_!(entry.metadata().await);
-            let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
+            let last_modified = file_meta.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t)));
             let size = try_!(i64::try_from(file_meta.len()));
 
             let part = Part {
