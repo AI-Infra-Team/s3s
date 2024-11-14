@@ -378,9 +378,12 @@ impl S3 for FileSystem {
                 // count += 1;
                 let file_type = try_!(entry.file_type().await);
                 if file_type.is_dir() {
-                    common_prefix_list.push(CommonPrefix {
-                        prefix: Some(entry.file_name()),
-                    })
+                    if let Some(name) = entry.file_name().to_str() {
+                        common_prefix_list.push(CommonPrefix {
+                            prefix: Some(name.to_owned()),
+                        })    
+                    }
+                    
                     // dir_queue.push_back(entry.path());
                 } else {
                     let file_path = entry.path();
