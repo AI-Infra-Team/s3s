@@ -444,7 +444,7 @@ impl S3 for FileSystem {
             name: Some(input.bucket),
             prefix: input.prefix,
             common_prefixes: Some(common_prefix_list),
-            ..Default::default(),
+            ..Default::default()
         };
         Ok(S3Response::new(output))
     }
