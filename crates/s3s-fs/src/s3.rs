@@ -383,9 +383,12 @@ impl S3 for FileSystem {
             if file_type.is_dir() {
                 if let Some(name) = entry.file_name().to_str() {
                     // if let Some(name) = normalize_path(name, delimiter) {
-                    common_prefix_list.push(CommonPrefix {
-                        prefix: Some(prefix.join(name)),
-                    })
+                    if let Some(subdir_fullpath) = prefix.join(name).to_str() {
+                        common_prefix_list.push(CommonPrefix {
+                            prefix: Some(subdir_fullpath.to_owned()),
+                        })
+                    }
+
                     // } else {
                     //     tracing::warn!("invalid path: {:?}", name);
                     // }
@@ -416,15 +419,17 @@ impl S3 for FileSystem {
                     let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t))); //Timestamp::from(try_!());
                     let size = metadata.len();
 
-                    let object = Object {
-                        key: Some(prefix.join(name)),
-                        last_modified: last_modified,
-                        size: Some(try_!(i64::try_from(size))),
-                        ..Default::default()
-                    };
-                    objects.push(object);
+                    if let Some(obj_fullpath) = prefix.join(name).to_str() {
+                        let object = Object {
+                            key: Some(obj_fullpath.to_owned()),
+                            last_modified: last_modified,
+                            size: Some(try_!(i64::try_from(size))),
+                            ..Default::default()
+                        };
+                        objects.push(object);
+                    }
                 } else {
-                    tracing::warn!("invalid path: {:?}", name);
+                    tracing::warn!("invalid file name: {:?}", entry.file_name());
                 }
             }
         }
