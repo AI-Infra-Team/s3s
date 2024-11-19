@@ -358,68 +358,77 @@ impl S3 for FileSystem {
 
     #[tracing::instrument]
     async fn list_objects_v2(&self, req: S3Request<ListObjectsV2Input>) -> S3Result<S3Response<ListObjectsV2Output>> {
+        // bucket 为第一层目录
         let input = req.input;
-        let path = self.get_bucket_path(&input.bucket)?;
+        let bucketpath = self.get_bucket_path(&input.bucket)?;
 
-        if path.exists().not() {
+        if bucketpath.exists().not() {
             return Err(s3_error!(NoSuchBucket));
         }
 
         let mut objects: Vec<Object> = default();
-        let mut dir_queue: VecDeque<PathBuf> = default();
-        dir_queue.push_back(path.clone());
+        // let mut dir_queue: VecDeque<PathBuf> = default();
+        // dir_queue.push_back(path.clone());
         let mut common_prefix_list: CommonPrefixList = List::new();
-
+        let prefix = PathBuf::from(input.prefix.map_or("", |prefix| &prefix));
         // let mut count = 0;
-        while let Some(dir) = dir_queue.pop_front() {
-            tracing::debug!("list dir {:?}", dir);
-            let mut iter = try_!(fs::read_dir(dir).await);
-            while let Some(entry) = try_!(iter.next_entry().await) {
-                // tracing::debug!("start processing dir: {:?} at {}", entry.path(), count);
-                // count += 1;
-                let file_type = try_!(entry.file_type().await);
-                if file_type.is_dir() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        if let Some(name) = normalize_path(name, delimiter) {
-                            common_prefix_list.push(CommonPrefix { prefix: Some(name) })
-                        } else {
-                            tracing::warn!("invalid path: {:?}", name);
-                        }
-                    }
-                    // dir_queue.push_back(entry.path());
+        // while let Some(dir) = dir_queue.pop_front() {
+        let dir = bucketpath.join(prefix);
+        tracing::debug!("list dir {:?}", dir);
+        let mut iter = try_!(fs::read_dir(dir).await);
+        while let Some(entry) = try_!(iter.next_entry().await) {
+            // tracing::debug!("start processing dir: {:?} at {}", entry.path(), count);
+            // count += 1;
+            let file_type = try_!(entry.file_type().await);
+            if file_type.is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    // if let Some(name) = normalize_path(name, delimiter) {
+                    common_prefix_list.push(CommonPrefix {
+                        prefix: Some(prefix.join(name)),
+                    })
+                    // } else {
+                    //     tracing::warn!("invalid path: {:?}", name);
+                    // }
                 } else {
-                    let file_path = entry.path();
-                    let key = try_!(file_path.strip_prefix(&path));
-                    let delimiter = input.delimiter.as_ref().map_or("/", |d| d.as_str());
-                    let Some(key_str) = normalize_path(key, delimiter) else {
-                        continue;
-                    };
+                    tracing::warn!("invalid path: {:?}", entry.path());
+                }
+                // dir_queue.push_back(entry.path());
+            } else {
+                // let file_path = entry.path();
+                // let key = try_!(file_path.strip_prefix(&path));
+                // let delimiter = input.delimiter.as_ref().map_or("/", |d| d.as_str());
+                // let Some(key_str) = normalize_path(key, delimiter) else {
+                //     continue;
+                // };
 
-                    if let Some(ref prefix) = input.prefix {
-                        let prefix_path: PathBuf = prefix.split(delimiter).collect();
+                // if let Some(ref prefix) = input.prefix {
+                //     let prefix_path: PathBuf = prefix.split(delimiter).collect();
 
-                        let key_s = format!("{}", key.display());
-                        let prefix_path_s = format!("{}", prefix_path.display());
+                //     let key_s = format!("{}", key.display());
+                //     let prefix_path_s = format!("{}", prefix_path.display());
 
-                        if !key_s.starts_with(&prefix_path_s) {
-                            continue;
-                        }
-                    }
-
+                //     if !key_s.starts_with(&prefix_path_s) {
+                //         continue;
+                //     }
+                // }
+                if let Some(name) = entry.file_name().to_str() {
                     let metadata = try_!(entry.metadata().await);
                     let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t))); //Timestamp::from(try_!());
                     let size = metadata.len();
 
                     let object = Object {
-                        key: Some(key_str),
+                        key: Some(prefix.join(name)),
                         last_modified: last_modified,
                         size: Some(try_!(i64::try_from(size))),
                         ..Default::default()
                     };
                     objects.push(object);
+                } else {
+                    tracing::warn!("invalid path: {:?}", name);
                 }
             }
         }
+        // }
 
         tracing::debug!("list buckets finished");
 
