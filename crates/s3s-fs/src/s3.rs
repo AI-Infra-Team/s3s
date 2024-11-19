@@ -370,10 +370,21 @@ impl S3 for FileSystem {
         // let mut dir_queue: VecDeque<PathBuf> = default();
         // dir_queue.push_back(path.clone());
         let mut common_prefix_list: CommonPrefixList = List::new();
-        let prefix = PathBuf::from(input.prefix.map_or("", |prefix| &prefix));
+        // let prefix = PathBuf::from(input.prefix.map_or("", |prefix| &prefix));
         // let mut count = 0;
         // while let Some(dir) = dir_queue.pop_front() {
-        let dir = bucketpath.join(prefix);
+        let dir = if let Some(prefix) = input.prefix.as_ref() {
+            bucketpath.join(prefix)
+        } else {
+            bucketpath
+        };
+        fullpath = |name: &str| -> PathBuf {
+            if let Some(prefix) = input.prefix.as_ref() {
+                prefix.join(name)
+            } else {
+                PathBuf::from(name)
+            }
+        };
         tracing::debug!("list dir {:?}", dir);
         let mut iter = try_!(fs::read_dir(dir).await);
         while let Some(entry) = try_!(iter.next_entry().await) {
@@ -383,7 +394,7 @@ impl S3 for FileSystem {
             if file_type.is_dir() {
                 if let Some(name) = entry.file_name().to_str() {
                     // if let Some(name) = normalize_path(name, delimiter) {
-                    if let Some(subdir_fullpath) = prefix.join(name).to_str() {
+                    if let Some(subdir_fullpath) = fullpath(name).to_str() {
                         common_prefix_list.push(CommonPrefix {
                             prefix: Some(subdir_fullpath.to_owned()),
                         })
@@ -419,7 +430,7 @@ impl S3 for FileSystem {
                     let last_modified = metadata.modified().map_or_else(|err| None, |t| Some(Timestamp::from(t))); //Timestamp::from(try_!());
                     let size = metadata.len();
 
-                    if let Some(obj_fullpath) = prefix.join(name).to_str() {
+                    if let Some(obj_fullpath) = fullpath(name).to_str() {
                         let object = Object {
                             key: Some(obj_fullpath.to_owned()),
                             last_modified: last_modified,
