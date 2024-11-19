@@ -380,11 +380,12 @@ impl S3 for FileSystem {
                 let file_type = try_!(entry.file_type().await);
                 if file_type.is_dir() {
                     if let Some(name) = entry.file_name().to_str() {
-                        common_prefix_list.push(CommonPrefix {
-                            prefix: Some(name.to_owned()),
-                        })
+                        if let Some(name) = normalize_path(name, delimiter) {
+                            common_prefix_list.push(CommonPrefix { prefix: Some(name) })
+                        } else {
+                            tracing::warn!("invalid path: {:?}", name);
+                        }
                     }
-
                     // dir_queue.push_back(entry.path());
                 } else {
                     let file_path = entry.path();
