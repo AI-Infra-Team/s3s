@@ -351,6 +351,7 @@ impl S3 for FileSystem {
             name: v2.name,
             prefix: v2.prefix,
             max_keys: v2.max_keys,
+            common_prefixes: v2.common_prefixes,
             ..Default::default()
         }))
     }
@@ -381,9 +382,9 @@ impl S3 for FileSystem {
                     if let Some(name) = entry.file_name().to_str() {
                         common_prefix_list.push(CommonPrefix {
                             prefix: Some(name.to_owned()),
-                        })    
+                        })
                     }
-                    
+
                     // dir_queue.push_back(entry.path());
                 } else {
                     let file_path = entry.path();
