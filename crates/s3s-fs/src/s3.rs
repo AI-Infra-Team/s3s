@@ -378,9 +378,9 @@ impl S3 for FileSystem {
         } else {
             bucketpath
         };
-        fullpath = |name: &str| -> PathBuf {
+        let fullpath = |name: &str| {
             if let Some(prefix) = input.prefix.as_ref() {
-                prefix.join(name)
+                PathBuf::from(prefix).join(name)
             } else {
                 PathBuf::from(name)
             }
